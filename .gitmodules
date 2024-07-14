@@ -1,0 +1,3 @@
+[submodule "aws-cdk-organizations-demo"]
+	path = aws-cdk-organizations-demo
+	url = https://github.com/san99tiago/aws-cdk-organizations-demo.git
