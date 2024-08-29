@@ -1,0 +1,23 @@
+{
+  "app": "python3 app.py",
+  "context": {
+    "main_resources_name": "aws-siem-networking",
+    "tags": {
+      "Owner": "Santiago Garcia Arango",
+      "Source": "https://github.com/san99tiago/aws-cybersecurity-siem",
+      "Usage": "Networking resources for AWS SIEM"
+    },
+    "app_config": {
+      "dev": {
+        "deployment_environment": "dev",
+        "vpc_name": "main-vpc-dev",
+        "vpc_cidr": "10.0.0.0/20",
+        "public_subnet_mask": 24,
+        "private_subnet_mask": 24,
+        "enable_nat_gateway": false,
+        "enable_vpc_flow_logs": true,
+        "enable_vpc_endpoints": true
+      }
+    }
+  }
+}
