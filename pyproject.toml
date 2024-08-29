@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "aws-cybersecurity-siem"
+version = "0.0.1"
+description = "Security Information and Event Management (SIEM) for AWS organization and services"
+authors = ["Santiago Garcia Arango <san99tiago@gmail.com>"]
+license = "Apache"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+aws-cdk-lib = "2.132.0"
+constructs = ">=10.0.0,<11.0.0"
+
+[tool.poetry.group.dev.dependencies]
+poethepoet = "^0.24.4"
+pytest = "^7.4.4"
+pytest-mock = "^3.12.0"
+coverage = "^7.4.0"
+black = "^23.12.1"
+boto3 = "^1.34.150"
+
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+pythonpath = ["cdk", "backend"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks]
+black-format = "black ."
+black-check = "black . --check --diff -v"
+test-unit = ["_test_unit", "_coverage_report", "_coverage_html"]
+synth = "cdk synth"
+_test_unit = "coverage run -m pytest tests/unit"
+_coverage_report = "coverage report"
+_coverage_html = "coverage html"
+
+[tool.coverage.run]
+branch = true
+source = ["backend", "cdk"]
+omit = ["**/__init__.py", "cdk/app.py"]
+
+[tool.coverage.report]
+show_missing = false
