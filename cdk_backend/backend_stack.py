@@ -9,6 +9,9 @@ from constructs import Construct
 from cdk_backend.vpc.infrastructure import VPC
 from cdk_backend.vpc_flow_logs.infrastructure import VPCFlowLogs
 from cdk_backend.vpc_endpoints.infrastructure import VPCEndpoints
+from cdk_backend.security_groups.infrastructure import SecurityGroups
+from cdk_backend.asg.infrastructure import ASG
+from cdk_backend.alb.infrastructure import ALB
 
 
 class NetworkingStack(Stack):
@@ -37,11 +40,13 @@ class NetworkingStack(Stack):
         self.main_resources_name = main_resources_name
         self.app_config = app_config
         self.deployment_environment = self.app_config["deployment_environment"]
+        self.app_config_networking = self.app_config["networking"]
+        self.app_config_siem = self.app_config.get("siem")
 
         # Main methods
         self.create_vpc_resources()
-
-        # TODO: Add firewall methods here...
+        if self.app_config_siem:
+            self.create_siem_resources()
 
         # Create CloudFormation outputs
         self.generate_cloudformation_outputs()
@@ -54,20 +59,58 @@ class NetworkingStack(Stack):
         self.vpc_construct = VPC(
             self,
             "NetworkVPC",
-            vpc_name=self.app_config["vpc_name"],
-            vpc_cidr=self.app_config["vpc_cidr"],
-            enable_nat_gateway=self.app_config["enable_nat_gateway"],
-            public_subnet_mask=self.app_config["public_subnet_mask"],
-            private_subnet_mask=self.app_config["private_subnet_mask"],
+            vpc_name=self.app_config_networking["vpc_name"],
+            vpc_cidr=self.app_config_networking["vpc_cidr"],
+            enable_nat_gateway=self.app_config_networking["enable_nat_gateway"],
+            public_subnet_mask=self.app_config_networking["public_subnet_mask"],
+            private_subnet_mask=self.app_config_networking["private_subnet_mask"],
         )
 
         # Configure VPC Flow Logs and Endpoints (if enabled)
-        if self.app_config["enable_vpc_flow_logs"]:
+        if self.app_config_networking["enable_vpc_flow_logs"]:
             VPCFlowLogs(self, "NetworkLogs", vpc_construct=self.vpc_construct)
 
         # Create the VPC Endpoints (if enabled)
-        if self.app_config["enable_vpc_endpoints"]:
+        if self.app_config_networking["enable_vpc_endpoints"]:
             VPCEndpoints(self, "NetworkEndpoints", vpc_construct=self.vpc_construct)
+
+    def create_siem_resources(self):
+        """
+        Method to create and configure the SIEM resources for the networking stack.
+        """
+        # Create the security groups for the SIEM
+        self.security_groups = SecurityGroups(
+            self,
+            "SecurityGroups",
+            vpc=self.vpc_construct.vpc,
+            sg_name=self.app_config_siem["short_name"],
+            sg_cidrs_list=self.app_config_siem["sg_cidrs_list"],
+        )
+
+        # Create the Auto Scaling Group for the SIEM
+        self.asg = ASG(
+            self,
+            "ASG",
+            vpc=self.vpc_construct.vpc,
+            short_name=self.app_config_siem["short_name"],
+            instance_type=self.app_config_siem["instance_type"],
+            min_capacity=self.app_config_siem["min_capacity"],
+            max_capacity=self.app_config_siem["max_capacity"],
+            desired_capacity=self.app_config_siem["desired_capacity"],
+            security_group=self.security_groups.sg_asg,
+            ami_name=self.app_config_siem["ami_name"],
+        )
+
+        # Create the Application Load Balancer for the SIEM
+        self.alb = ALB(
+            self,
+            "ALB",
+            vpc=self.vpc_construct.vpc,
+            short_name=self.app_config_siem["short_name"],
+            security_group=self.security_groups.sg_alb,
+            alb_target=self.asg.asg,
+            hosted_zone_name=self.app_config_siem["hosted_zone_name"],
+        )
 
     def generate_cloudformation_outputs(self):
         """
