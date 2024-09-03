@@ -105,6 +105,9 @@ class ALB(Construct):
             certificates=[self.certificate],
         )
 
+        # TODO: Add all the necessary listeners for the ALB
+        # --> The ones needed for the Wazuh components
+
     def configure_target_groups(self):
         """
         Method to configure the target groups for the ALB.
