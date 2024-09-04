@@ -8,7 +8,14 @@ from aws_cdk import (
 from constructs import Construct
 
 # Own imports
-from cdk_backend.common.constants import APP_PORT, ALB_PORT
+from cdk_backend.common.constants import (
+    APP_PORT,
+    ALB_PORT,
+    INDEXER_PORT,
+    MANAGER_PORT_1,
+    MANAGER_PORT_2,
+    MANAGER_PORT_3,
+)
 
 
 class SecurityGroups(Construct):
@@ -43,10 +50,35 @@ class SecurityGroups(Construct):
             allow_all_outbound=True,
         )
         for cidr in sg_cidrs_list:
+            # Wazuh uses 443 for the Dashboard
             self.sg_alb.add_ingress_rule(
                 peer=aws_ec2.Peer.ipv4(cidr),
                 connection=aws_ec2.Port.tcp(ALB_PORT),
                 description=f"Allow HTTPS traffic to ALB for {cidr} CIDR",
+            )
+
+            # Wazuh uses 9200 for the Indexer
+            self.sg_alb.add_ingress_rule(
+                peer=aws_ec2.Peer.ipv4(cidr),
+                connection=aws_ec2.Port.tcp(INDEXER_PORT),
+                description=f"Allow Indexer traffic to ALB for {cidr} CIDR",
+            )
+
+            # Wazuh uses multiple ports for the Manager
+            self.sg_alb.add_ingress_rule(
+                peer=aws_ec2.Peer.ipv4(cidr),
+                connection=aws_ec2.Port.tcp(MANAGER_PORT_1),
+                description=f"Allow Manager remoted traffic to ALB for {cidr} CIDR",
+            )
+            self.sg_alb.add_ingress_rule(
+                peer=aws_ec2.Peer.ipv4(cidr),
+                connection=aws_ec2.Port.tcp(MANAGER_PORT_2),
+                description=f"Allow Manager authd traffic to ALB for {cidr} CIDR",
+            )
+            self.sg_alb.add_ingress_rule(
+                peer=aws_ec2.Peer.ipv4(cidr),
+                connection=aws_ec2.Port.tcp(MANAGER_PORT_3),
+                description=f"Allow Manager cluster traffic to ALB for {cidr} CIDR",
             )
 
         # ASG Security Group

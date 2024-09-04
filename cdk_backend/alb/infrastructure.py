@@ -11,7 +11,15 @@ from aws_cdk import (
 from constructs import Construct
 
 # Own imports
-from cdk_backend.common.constants import APP_PORT, ALB_PORT, DNS_SUBDOMAIN
+from cdk_backend.common.constants import (
+    APP_PORT,
+    ALB_PORT,
+    INDEXER_PORT,
+    MANAGER_PORT_1,
+    MANAGER_PORT_2,
+    MANAGER_PORT_3,
+    DNS_SUBDOMAIN,
+)
 
 
 class ALB(Construct):
@@ -97,25 +105,108 @@ class ALB(Construct):
         """
         Method to configure the ALB listeners for the UI.
         """
+        # Main HTTPS Listener for the ALB
         self.https_listener = self.alb.add_listener(
-            "ALB-HTTPS-Listener",
+            "ALB-Dashboard-Listener",
             open=True,
             port=ALB_PORT,
             protocol=aws_elbv2.ApplicationProtocol.HTTPS,
             certificates=[self.certificate],
         )
 
-        # TODO: Add all the necessary listeners for the ALB
-        # --> The ones needed for the Wazuh components
+        # Listener for the Indexer
+        self.indexer_listener = self.alb.add_listener(
+            "ALB-Indexer-Listener",
+            open=True,
+            port=INDEXER_PORT,
+            protocol=aws_elbv2.ApplicationProtocol.HTTPS,
+            certificates=[self.certificate],
+        )
+
+        # Listeners for the Manager
+        self.manager_1_listener = self.alb.add_listener(
+            "ALB-Manager-Listener-1",
+            open=True,
+            port=MANAGER_PORT_1,
+            protocol=aws_elbv2.ApplicationProtocol.HTTPS,
+            certificates=[self.certificate],
+        )
+        self.manager_2_listener = self.alb.add_listener(
+            "ALB-Manager-Listener-2",
+            open=True,
+            port=MANAGER_PORT_2,
+            protocol=aws_elbv2.ApplicationProtocol.HTTPS,
+            certificates=[self.certificate],
+        )
+        self.manager_3_listener = self.alb.add_listener(
+            "ALB-Manager-Listener-3",
+            open=True,
+            port=MANAGER_PORT_3,
+            protocol=aws_elbv2.ApplicationProtocol.HTTPS,
+            certificates=[self.certificate],
+        )
 
     def configure_target_groups(self):
         """
         Method to configure the target groups for the ALB.
         """
+        # Dashboard Target Group
         self.https_listener_target_group = self.https_listener.add_targets(
-            "ALB-HTTPS-TargetGroup",
+            "ALB-Dashboard-TargetGroup",
             port=APP_PORT,  # Intentionally set to Application Port for the ASG
             protocol=aws_elbv2.ApplicationProtocol.HTTPS,  # Intentionally set to HTTPS for the ASG
+            targets=[self.alb_target],
+            health_check=aws_elbv2.HealthCheck(
+                path="/",
+                protocol=aws_elbv2.Protocol.HTTP,
+                timeout=Duration.seconds(15),
+                interval=Duration.minutes(5),
+            ),
+        )
+
+        # Indexer Target Group
+        self.indexer_listener_target_group = self.indexer_listener.add_targets(
+            "ALB-Indexer-TargetGroup",
+            port=INDEXER_PORT,
+            protocol=aws_elbv2.ApplicationProtocol.HTTP,
+            targets=[self.alb_target],
+            health_check=aws_elbv2.HealthCheck(
+                path="/",
+                protocol=aws_elbv2.Protocol.HTTP,
+                timeout=Duration.seconds(15),
+                interval=Duration.minutes(5),
+            ),
+        )
+
+        # Manager Target Groups
+        self.manager_1_listener_target_group = self.manager_1_listener.add_targets(
+            "ALB-Manager-TargetGroup-1",
+            port=MANAGER_PORT_1,
+            protocol=aws_elbv2.ApplicationProtocol.HTTP,
+            targets=[self.alb_target],
+            health_check=aws_elbv2.HealthCheck(
+                path="/",
+                protocol=aws_elbv2.Protocol.HTTP,
+                timeout=Duration.seconds(15),
+                interval=Duration.minutes(5),
+            ),
+        )
+        self.manager_2_listener_target_group = self.manager_2_listener.add_targets(
+            "ALB-Manager-TargetGroup-2",
+            port=MANAGER_PORT_2,
+            protocol=aws_elbv2.ApplicationProtocol.HTTP,
+            targets=[self.alb_target],
+            health_check=aws_elbv2.HealthCheck(
+                path="/",
+                protocol=aws_elbv2.Protocol.HTTP,
+                timeout=Duration.seconds(15),
+                interval=Duration.minutes(5),
+            ),
+        )
+        self.manager_3_listener_target_group = self.manager_3_listener.add_targets(
+            "ALB-Manager-TargetGroup-3",
+            port=MANAGER_PORT_3,
+            protocol=aws_elbv2.ApplicationProtocol.HTTP,
             targets=[self.alb_target],
             health_check=aws_elbv2.HealthCheck(
                 path="/",
