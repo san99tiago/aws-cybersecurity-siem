@@ -9,8 +9,7 @@ from constructs import Construct
 
 # Own imports
 from cdk_backend.common.constants import (
-    APP_PORT,
-    ALB_PORT,
+    DASHBOARD_PORT,
     INDEXER_PORT,
     MANAGER_PORT_1,
     MANAGER_PORT_2,
@@ -40,45 +39,45 @@ class SecurityGroups(Construct):
         """
         super().__init__(scope, construct_id)
 
-        # ALB Security Group on port 443 (HTTPS)
-        self.sg_alb = aws_ec2.SecurityGroup(
+        # NLB Security Group on port 443 (HTTPS)
+        self.sg_nlb = aws_ec2.SecurityGroup(
             self,
-            "SG-ALB",
+            "SG-NLB",
             vpc=vpc,
-            security_group_name=f"{sg_name}-ALB",
-            description=f"Security group for {sg_name} ALB",
+            security_group_name=f"{sg_name}-NLB",
+            description=f"Security group for {sg_name} NLB",
             allow_all_outbound=True,
         )
         for cidr in sg_cidrs_list:
             # Wazuh uses 443 for the Dashboard
-            self.sg_alb.add_ingress_rule(
+            self.sg_nlb.add_ingress_rule(
                 peer=aws_ec2.Peer.ipv4(cidr),
-                connection=aws_ec2.Port.tcp(ALB_PORT),
-                description=f"Allow HTTPS traffic to ALB for {cidr} CIDR",
+                connection=aws_ec2.Port.tcp(DASHBOARD_PORT),
+                description=f"Allow HTTPS traffic to NLB for {cidr} CIDR",
             )
 
-            # Wazuh uses 9200 for the Indexer
-            self.sg_alb.add_ingress_rule(
-                peer=aws_ec2.Peer.ipv4(cidr),
-                connection=aws_ec2.Port.tcp(INDEXER_PORT),
-                description=f"Allow Indexer traffic to ALB for {cidr} CIDR",
-            )
+            # # Wazuh uses 9200 for the Indexer
+            # self.sg_nlb.add_ingress_rule(
+            #     peer=aws_ec2.Peer.ipv4(cidr),
+            #     connection=aws_ec2.Port.tcp(INDEXER_PORT),
+            #     description=f"Allow Indexer traffic to NLB for {cidr} CIDR",
+            # )
 
             # Wazuh uses multiple ports for the Manager
-            self.sg_alb.add_ingress_rule(
+            self.sg_nlb.add_ingress_rule(
                 peer=aws_ec2.Peer.ipv4(cidr),
                 connection=aws_ec2.Port.tcp(MANAGER_PORT_1),
-                description=f"Allow Manager remoted traffic to ALB for {cidr} CIDR",
+                description=f"Allow Manager remoted traffic to NLB for {cidr} CIDR",
             )
-            self.sg_alb.add_ingress_rule(
+            self.sg_nlb.add_ingress_rule(
                 peer=aws_ec2.Peer.ipv4(cidr),
                 connection=aws_ec2.Port.tcp(MANAGER_PORT_2),
-                description=f"Allow Manager authd traffic to ALB for {cidr} CIDR",
+                description=f"Allow Manager authd traffic to NLB for {cidr} CIDR",
             )
-            self.sg_alb.add_ingress_rule(
+            self.sg_nlb.add_ingress_rule(
                 peer=aws_ec2.Peer.ipv4(cidr),
                 connection=aws_ec2.Port.tcp(MANAGER_PORT_3),
-                description=f"Allow Manager cluster traffic to ALB for {cidr} CIDR",
+                description=f"Allow Manager cluster traffic to NLB for {cidr} CIDR",
             )
 
         # ASG Security Group
@@ -91,16 +90,24 @@ class SecurityGroups(Construct):
             allow_all_outbound=True,
         )
 
-        # Allow inbound traffic from ALB to ASG on application's port
-        self.sg_alb.connections.allow_from(
-            self.sg_asg,
-            port_range=aws_ec2.Port.tcp(APP_PORT),
-            description="Allow HTTP traffic from ALB to ASG",
+        # Allow inbound traffic from NLB to ASG
+        self.sg_asg.connections.allow_from(
+            self.sg_nlb,
+            port_range=aws_ec2.Port.tcp(DASHBOARD_PORT),
+            description="Allow HTTP traffic from NLB to ASG",
         )
-
-        # TODO: Remove these rules when stabilization is finished
-        self.sg_asg.add_ingress_rule(
-            peer=aws_ec2.Peer.any_ipv4(),
-            connection=aws_ec2.Port.all_traffic(),
-            description="Allow all traffic from any source",
+        self.sg_asg.connections.allow_from(
+            self.sg_nlb,
+            port_range=aws_ec2.Port.tcp(MANAGER_PORT_1),
+            description="Allow Manager remoted traffic from NLB to ASG",
+        )
+        self.sg_asg.connections.allow_from(
+            self.sg_nlb,
+            port_range=aws_ec2.Port.tcp(MANAGER_PORT_2),
+            description="Allow Manager authd traffic from NLB to ASG",
+        )
+        self.sg_asg.connections.allow_from(
+            self.sg_nlb,
+            port_range=aws_ec2.Port.tcp(MANAGER_PORT_3),
+            description="Allow Manager cluster traffic from NLB to ASG",
         )

@@ -12,8 +12,7 @@ from constructs import Construct
 
 # Own imports
 from cdk_backend.common.constants import (
-    APP_PORT,
-    ALB_PORT,
+    DASHBOARD_PORT,
     INDEXER_PORT,
     MANAGER_PORT_1,
     MANAGER_PORT_2,
@@ -54,7 +53,7 @@ class NLB(Construct):
         self.nlb_target = nlb_target
         self.hosted_zone_name = hosted_zone_name
 
-        # Main methods to create and configure the ALB
+        # Main methods to create and configure the NLB
         self.create_nlb()
         self.import_route_53_hosted_zone()
         self.configure_acm_certificate()
@@ -72,7 +71,7 @@ class NLB(Construct):
             vpc=self.vpc,
             internet_facing=True,
             load_balancer_name=self.short_name,
-            security_group=self.security_group,
+            security_groups=[self.security_group],
         )
 
     def import_route_53_hosted_zone(self):
@@ -90,7 +89,7 @@ class NLB(Construct):
 
     def configure_acm_certificate(self):
         """
-        Method to configure the SSL certificate for the ALB.
+        Method to configure the SSL certificate for the NLB.
         """
         self.certificate = aws_certificatemanager.Certificate(
             self,
@@ -106,39 +105,39 @@ class NLB(Construct):
         Method to configure the NLB listeners for the Dashboard, Indexer and Manager.
         """
         # Main HTTPS Listener for the NLB
-        self.https_listener = self.nlb.add_listener(
+        self.dashboard_listener = self.nlb.add_listener(
             "NLB-Dashboard-Listener",
-            port=APP_PORT,
-            protocol=aws_elbv2.Protocol.HTTP,
+            port=DASHBOARD_PORT,
+            protocol=aws_elbv2.Protocol.TLS,  # For HTTPS traffic
             certificates=[self.certificate],
         )
 
-        # Listener for the Indexer
-        self.indexer_listener = self.nlb.add_listener(
-            "NLB-Indexer-Listener",
-            port=INDEXER_PORT,
-            protocol=aws_elbv2.Protocol.TCP,
-            certificates=[self.certificate],
-        )
+        # # Listener for the Indexer
+        # self.indexer_listener = self.nlb.add_listener(
+        #     "NLB-Indexer-Listener",
+        #     port=INDEXER_PORT,
+        #     protocol=aws_elbv2.Protocol.TCP,
+        #     # certificates=[self.certificate],
+        # )
 
         # Listeners for the Manager
         self.manager_1_listener = self.nlb.add_listener(
             "NLB-Manager-Listener-1",
             port=MANAGER_PORT_1,
-            protocol=aws_elbv2.Protocol.TCP_UDP,
-            certificates=[self.certificate],
+            protocol=aws_elbv2.Protocol.TCP,
+            # certificates=[self.certificate],
         )
         self.manager_2_listener = self.nlb.add_listener(
             "NLB-Manager-Listener-2",
             port=MANAGER_PORT_2,
-            protocol=aws_elbv2.Protocol.TCP_UDP,
-            certificates=[self.certificate],
+            protocol=aws_elbv2.Protocol.TCP,
+            # certificates=[self.certificate],
         )
         self.manager_3_listener = self.nlb.add_listener(
             "NLB-Manager-Listener-3",
             port=MANAGER_PORT_3,
-            protocol=aws_elbv2.Protocol.TCP_UDP,
-            certificates=[self.certificate],
+            protocol=aws_elbv2.Protocol.TCP,
+            # certificates=[self.certificate],
         )
 
     def configure_target_groups(self):
@@ -146,74 +145,49 @@ class NLB(Construct):
         Method to configure the target groups for the NLB.
         """
         # Dashboard Target Group
-        self.https_listener_target_group = self.https_listener.add_targets(
+        self.dashboard_listener_target_group = self.dashboard_listener.add_targets(
             "NLB-Dashboard-TargetGroup",
-            port=APP_PORT,  # Intentionally set to Application Port for the ASG
-            protocol=aws_elbv2.Protocol.HTTPS,
+            port=DASHBOARD_PORT,  # Intentionally set to Application Port for the ASG
+            protocol=aws_elbv2.Protocol.TLS,
             targets=[self.nlb_target],
-            health_check=aws_elbv2.HealthCheck(
-                path="/",
-                protocol=aws_elbv2.Protocol.HTTPS,
-                timeout=Duration.seconds(15),
-                interval=Duration.minutes(5),
-            ),
+            # TODO: Add health check configuration
         )
 
-        # Indexer Target Group
-        self.indexer_listener_target_group = self.indexer_listener.add_targets(
-            "NLB-Indexer-TargetGroup",
-            port=INDEXER_PORT,
-            protocol=aws_elbv2.Protocol.TCP,
-            targets=[self.nlb_target],
-            health_check=aws_elbv2.HealthCheck(
-                path="/",
-                protocol=aws_elbv2.Protocol.TCP,
-                timeout=Duration.seconds(15),
-                interval=Duration.minutes(5),
-            ),
-        )
+        # # Indexer Target Group
+        # self.indexer_listener_target_group = self.indexer_listener.add_targets(
+        #     "NLB-Indexer-TargetGroup",
+        #     port=INDEXER_PORT,
+        #     protocol=aws_elbv2.Protocol.TCP,
+        #     targets=[self.nlb_target],
+        #     # TODO: Add health check configuration
+        # )
 
         # Manager Target Groups
         self.manager_1_listener_target_group = self.manager_1_listener.add_targets(
             "NLB-Manager-TargetGroup-1",
             port=MANAGER_PORT_1,
-            protocol=aws_elbv2.Protocol.TCP_UDP,
+            protocol=aws_elbv2.Protocol.TCP,
             targets=[self.nlb_target],
-            health_check=aws_elbv2.HealthCheck(
-                path="/",
-                protocol=aws_elbv2.Protocol.TCP_UDP,
-                timeout=Duration.seconds(15),
-                interval=Duration.minutes(5),
-            ),
+            # TODO: Add health check configuration
         )
         self.manager_2_listener_target_group = self.manager_2_listener.add_targets(
             "NLB-Manager-TargetGroup-2",
             port=MANAGER_PORT_2,
             protocol=aws_elbv2.Protocol.TCP,
             targets=[self.nlb_target],
-            health_check=aws_elbv2.HealthCheck(
-                path="/",
-                protocol=aws_elbv2.Protocol.TCP,
-                timeout=Duration.seconds(15),
-                interval=Duration.minutes(5),
-            ),
+            # TODO: Add health check configuration
         )
         self.manager_3_listener_target_group = self.manager_3_listener.add_targets(
             "NLB-Manager-TargetGroup-3",
             port=MANAGER_PORT_3,
             protocol=aws_elbv2.Protocol.TCP,
             targets=[self.nlb_target],
-            health_check=aws_elbv2.HealthCheck(
-                path="/",
-                protocol=aws_elbv2.Protocol.TCP,
-                timeout=Duration.seconds(15),
-                interval=Duration.minutes(5),
-            ),
+            # TODO: Add health check configuration
         )
 
     def configure_route_53_records(self):
         """
-        Method to configure the Route 53 records for the ALB.
+        Method to configure the Route 53 records for the NLB.
         """
         aws_route53.ARecord(
             self,

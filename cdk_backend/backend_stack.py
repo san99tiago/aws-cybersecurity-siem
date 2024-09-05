@@ -6,12 +6,12 @@ from aws_cdk import (
 from constructs import Construct
 
 # Own imports
+from cdk_backend.asg.infrastructure import ASG
+from cdk_backend.security_groups.infrastructure import SecurityGroups
+from cdk_backend.nlb.infrastructure import NLB
 from cdk_backend.vpc.infrastructure import VPC
 from cdk_backend.vpc_flow_logs.infrastructure import VPCFlowLogs
 from cdk_backend.vpc_endpoints.infrastructure import VPCEndpoints
-from cdk_backend.security_groups.infrastructure import SecurityGroups
-from cdk_backend.asg.infrastructure import ASG
-from cdk_backend.alb.infrastructure import ALB
 
 
 class NetworkingStack(Stack):
@@ -102,13 +102,13 @@ class NetworkingStack(Stack):
         )
 
         # Create the Application Load Balancer for the SIEM
-        self.alb = ALB(
+        self.nlb = NLB(
             self,
-            "ALB",
+            "NLB",
             vpc=self.vpc_construct.vpc,
             short_name=self.app_config_siem["short_name"],
-            security_group=self.security_groups.sg_alb,
-            alb_target=self.asg.asg,
+            security_group=self.security_groups.sg_nlb,
+            nlb_target=self.asg.asg,
             hosted_zone_name=self.app_config_siem["hosted_zone_name"],
         )
 
