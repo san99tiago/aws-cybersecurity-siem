@@ -35,11 +35,20 @@
           "short_name": "wazuh-siem",
           "sg_cidrs_list": ["0.0.0.0/0"],
           "instance_type": "c5a.xlarge",
-          "ami_name": "Wazuh_v4.8.2-1-79ced6c9-1e2d-4f22-ada6-dc528473b3f8",
+          "ami_name": "Wazuh_v4.9.0-1-79ced6c9-1e2d-4f22-ada6-dc528473b3f8",
           "min_capacity": 1,
           "max_capacity": 1,
           "desired_capacity": 1,
           "hosted_zone_name": "san99tiago.com"
+        },
+        "demo_servers": {
+          "short_name": "demo-server",
+          "sg_cidrs_list": ["0.0.0.0/0"],
+          "instance_type": "t2.micro",
+          "ami_name": "al2023-ami-2023.5.20240903.0-kernel-6.1-x86_64",
+          "min_capacity": 5,
+          "max_capacity": 5,
+          "desired_capacity": 5
         }
       }
     }

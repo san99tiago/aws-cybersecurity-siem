@@ -1,6 +1,6 @@
 # Built-in imports
-import os
-from typing import List
+import os, enum
+from typing import Optional
 
 # External imports
 from aws_cdk import (
@@ -9,6 +9,15 @@ from aws_cdk import (
     aws_iam,
 )
 from constructs import Construct
+
+
+class ASGType(enum.Enum):
+    """
+    Enum to define the different types of ASG resources.
+    """
+
+    WAZUH_SERVER = "wazuh_server"
+    WAZUH_AGENT = "wazuh_agent"
 
 
 class ASG(Construct):
@@ -28,6 +37,7 @@ class ASG(Construct):
         desired_capacity: str,
         security_group: aws_ec2.SecurityGroup,
         ami_name: str,
+        asg_type: Optional[ASGType] = ASGType.WAZUH_SERVER,
     ) -> None:
         """
         :param scope (Construct): Parent of this stack, usually an 'App' or a 'Stage', but could be any construct.
@@ -40,6 +50,7 @@ class ASG(Construct):
         :param desired_capacity (str): The desired capacity for the ASG.
         :param security_group (aws_ec2.SecurityGroup): The Security Group for the ASG.
         :param ami_name (str): The name of the AMI to use for the ASG (e.g. "Amazon Linux 2").
+        :param asg_type (ASGType): The type of ASG resource to create (default: ASGType.WAZUH_SERVER).
         """
         super().__init__(scope, construct_id)
 
@@ -84,9 +95,17 @@ class ASG(Construct):
         # Add user data Environment Variables to the ASG/EC2 initialization
         self.asg.add_user_data(f"echo export VPC_ID={vpc.vpc_id} >> /etc/profile")
 
-        PATH_TO_USER_DATA = os.path.join(
-            os.path.dirname(__file__), "user_data_script.sh"
-        )
+        if asg_type == ASGType.WAZUH_SERVER:
+            PATH_TO_USER_DATA = os.path.join(
+                os.path.dirname(__file__), "user_data_script_server.sh"
+            )
+        elif asg_type == ASGType.WAZUH_AGENT:
+            PATH_TO_USER_DATA = os.path.join(
+                os.path.dirname(__file__), "user_data_script_agents.sh"
+            )
+        else:
+            raise ValueError("Invalid ASGType provided.")
+
         with open(PATH_TO_USER_DATA, "r") as file:
             user_data_script = file.read()
             self.asg.add_user_data(user_data_script)

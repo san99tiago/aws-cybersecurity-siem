@@ -1,12 +1,13 @@
 # External imports
 from aws_cdk import (
+    aws_ec2,
     Stack,
     CfnOutput,
 )
 from constructs import Construct
 
 # Own imports
-from cdk_backend.asg.infrastructure import ASG
+from cdk_backend.asg.infrastructure import ASG, ASGType
 from cdk_backend.security_groups.infrastructure import SecurityGroups
 from cdk_backend.nlb.infrastructure import NLB
 from cdk_backend.vpc.infrastructure import VPC
@@ -42,11 +43,15 @@ class NetworkingStack(Stack):
         self.deployment_environment = self.app_config["deployment_environment"]
         self.app_config_networking = self.app_config["networking"]
         self.app_config_siem = self.app_config.get("siem")
+        self.app_config_demo_servers = self.app_config.get("demo_servers")
 
         # Main methods
         self.create_vpc_resources()
         if self.app_config_siem:
             self.create_siem_resources()
+
+        if self.app_config_demo_servers:
+            self.create_demo_server_resources()
 
         # Create CloudFormation outputs
         self.generate_cloudformation_outputs()
@@ -99,6 +104,7 @@ class NetworkingStack(Stack):
             desired_capacity=self.app_config_siem["desired_capacity"],
             security_group=self.security_groups.sg_asg,
             ami_name=self.app_config_siem["ami_name"],
+            asg_type=ASGType.WAZUH_SERVER,
         )
 
         # Create the Application Load Balancer for the SIEM
@@ -110,6 +116,36 @@ class NetworkingStack(Stack):
             security_group=self.security_groups.sg_nlb,
             nlb_target=self.asg.asg,
             hosted_zone_name=self.app_config_siem["hosted_zone_name"],
+        )
+
+    def create_demo_server_resources(self):
+        """
+        Method to create and configure the demo server resources for the networking stack.
+        """
+
+        # Create the Security Group for the demo servers
+        self.demo_server_sg = aws_ec2.SecurityGroup(
+            self,
+            "DemoServerSG",
+            vpc=self.vpc_construct.vpc,
+            security_group_name=f"{self.app_config_demo_servers['short_name']}-DemoServerSG",
+            description="Security group for demo servers",
+            allow_all_outbound=True,
+        )
+
+        # Create the ASG for the demo servers
+        self.demo_server_asg = ASG(
+            self,
+            "DemoServerASG",
+            vpc=self.vpc_construct.vpc,
+            short_name=f"{self.app_config_demo_servers['short_name']}v1",
+            instance_type=self.app_config_demo_servers["instance_type"],
+            min_capacity=self.app_config_demo_servers["min_capacity"],
+            max_capacity=self.app_config_demo_servers["max_capacity"],
+            desired_capacity=self.app_config_demo_servers["desired_capacity"],
+            security_group=self.demo_server_sg,
+            ami_name=self.app_config_demo_servers["ami_name"],
+            asg_type=ASGType.WAZUH_AGENT,
         )
 
     def generate_cloudformation_outputs(self):
