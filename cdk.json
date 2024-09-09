@@ -18,6 +18,15 @@
           "enable_nat_gateway": false,
           "enable_vpc_flow_logs": true,
           "enable_vpc_endpoints": true
+        },
+        "demo_servers": {
+          "short_name": "demo-server",
+          "sg_cidrs_list": ["0.0.0.0/0"],
+          "instance_type": "t2.micro",
+          "ami_name": "al2023-ami-2023.5.20240903.0-kernel-6.1-x86_64",
+          "min_capacity": 2,
+          "max_capacity": 2,
+          "desired_capacity": 2
         }
       },
       "prod": {
